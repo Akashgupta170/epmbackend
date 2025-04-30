@@ -9,7 +9,7 @@ use Illuminate\Http\Request;
 
 class AccessoryAssignController extends Controller
 {
-    public function addaccessoryassign(Request $request)
+    public function addaccessory(Request $request)
     {
         try {
             // Validate input
@@ -34,17 +34,9 @@ class AccessoryAssignController extends Controller
                 'category_id' => $validated['category_id'],
             ]);
 
-            // Step 2: Create assignment
-            $assignment = Assignment::create([
-                'user_id' => $validated['user_id'],
-                'accessory_id' => $accessory->id,
-                'quantity' => $validated['quantity'],
-            ]);
-
             return response()->json([
                 'message' => 'Accessory created and assigned successfully.',
-                'accessory' => $accessory,
-                'assignment' => $assignment
+                'data' => $accessory,
             ], 201);
 
         } catch (\Illuminate\Validation\ValidationException $e) {
@@ -56,6 +48,94 @@ class AccessoryAssignController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Failed to create accessory and assign.',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function getaccessory()
+    {
+        try {
+            $accessories = Accessory::with('category')->orderByDesc('id')->get();
+
+            return response()->json([
+                'message' => 'Accessories retrieved successfully.',
+                'data' => $accessories
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to fetch accessories.',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function editaccessory($id)
+    {
+        try {
+            $accessory = Accessory::with('category')->findOrFail($id);
+
+            return response()->json([
+                'message' => 'Accessory found.',
+                'data' => $accessory
+            ]);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'message' => 'Accessory not found.'
+            ], 404);
+        }
+    }
+
+    public function updateaccessory(Request $request, $id)
+    {
+        try {
+            $validated = $request->validate([
+                'accessory_no' => 'required|max:255',
+                'model' => 'nullable|max:255',
+                'condition' => 'nullable',
+                'category_id' => 'required|exists:categories,id',
+                'issue_date' => 'nullable|date',
+                'note' => 'nullable',
+                'status' => 'nullable',
+            ]);
+
+            $accessory = Accessory::findOrFail($id);
+            $accessory->update($validated);
+
+            return response()->json([
+                'message' => 'Accessory updated successfully.',
+                'data' => $accessory
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'message' => 'Validation failed.',
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to update accessory.',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function deleteaccessory($id)
+    {
+        try {
+            $accessory = Accessory::findOrFail($id);
+            $accessory->delete();
+
+            return response()->json([
+                'message' => 'Accessory deleted successfully.',
+                'data' => $accessory
+            ]);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'message' => 'Accessory not found.'
+            ], 404);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to delete accessory.',
                 'error' => $e->getMessage()
             ], 500);
         }

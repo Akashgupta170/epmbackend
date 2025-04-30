@@ -21,9 +21,7 @@ use App\Models\Accessory;
 //     return $request->user();
 // })->middleware('auth:sanctum');
 
-Route::get('/hlo',function(){
-    return 'hlo';
-});
+
 
 Route::post('/login', [AuthController::class, 'login']);
 Route::get('/login', function () {
@@ -119,7 +117,11 @@ Route::middleware('auth:api')->group(function () {
     Route::delete('/deleteaccessorycategory/{id}', [AccessoryController::class, 'deleteaccessorycategory']);
 
     // accessory assign
-	// Route::post('/addaccessoryassign', [AccessoryAssignController::class, 'addaccessoryassign']);
+	Route::post('/addaccessory', [AccessoryAssignController::class, 'addaccessory']);
+    Route::get('/getaccessory', [AccessoryAssignController::class, 'getaccessory']);
+	Route::get('/editaccessory/{id}', [AccessoryAssignController::class, 'editaccessory']);
+    Route::put('/updateaccessory/{id}', [AccessoryAssignController::class, 'updateaccessory']);
+    Route::delete('/deleteaccessory/{id}', [AccessoryAssignController::class, 'deleteaccessory']);
 
     //Route::get('/tagsactivity', [TagsActivityController::class, 'index']); // Get all tags
 });

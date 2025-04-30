@@ -15,7 +15,8 @@ return new class extends Migration
             $table->id();
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
             $table->foreignId('accessory_id')->constrained()->onDelete('cascade');
-            $table->integer('quantity')->default(0);
+            $table->date('assigned_at')->default(now());
+            $table->string('status');
             $table->timestamps();
         });
     }

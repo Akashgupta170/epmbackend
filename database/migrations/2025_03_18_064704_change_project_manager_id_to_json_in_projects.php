@@ -1,5 +1,4 @@
 <?php
-
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -12,7 +11,13 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('projects', function (Blueprint $table) {
-            $table->json('project_manager_id')->nullable()->change(); // ✅ Convert column to JSON
+            // Drop the existing column and create a new one with JSON type.
+            $table->dropColumn('project_manager_id');
+        });
+
+        // Add the column again with the JSON type
+        Schema::table('projects', function (Blueprint $table) {
+            $table->json('project_manager_id')->nullable();
         });
     }
 
@@ -22,7 +27,13 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('projects', function (Blueprint $table) {
-            $table->bigInteger('project_manager_id')->unsigned()->nullable()->change(); // Rollback to BIGINT if needed
+            // Drop the column with JSON type and recreate it as bigInteger.
+            $table->dropColumn('project_manager_id');
+        });
+
+        // Add the column again with the BIGINT type.
+        Schema::table('projects', function (Blueprint $table) {
+            $table->bigInteger('project_manager_id')->unsigned()->nullable();
         });
     }
 };
