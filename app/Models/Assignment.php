@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class Assignment extends Model
 {
     protected $fillable = [
-        'user_id', 'accessory_id', 'quantity'
+        'user_id', 'accessory_id', 'assigned_at','status'
     ];
 
     public function accessory()

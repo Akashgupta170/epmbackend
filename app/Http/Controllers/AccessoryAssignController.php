@@ -144,4 +144,88 @@ class AccessoryAssignController extends Controller
             ], 500);
         }
     }
+
+    // accessory assign
+    public function addaccessoryassign(Request $request)
+    {
+        try {
+            $validated = $request->validate([
+                'user_id' => 'required|exists:users,id',
+                'accessory_id' => 'required|exists:accessories,id',
+                'assigned_at' => 'nullable|date',
+                'status' => 'nullable|in:assigned,vacant,in-repair,lost',
+            ]);
+
+            $accessoryAssign = new Assignment();
+            $accessoryAssign->user_id = $validated['user_id'];
+            $accessoryAssign->accessory_id = $validated['accessory_id'];
+            $accessoryAssign->assigned_at = $validated['assigned_at'];
+            $accessoryAssign->status = $validated['status'];
+            $accessoryAssign->save();
+
+            return response()->json(['message' => 'Accessory assigned successfully', 'data' => $accessoryAssign], 201);
+        } catch (\Exception $e) {
+            // Catch any exception that occurs during the process
+            return response()->json(['message' => 'Failed to assign accessory', 'error' => $e->getMessage()], 500);
+        }
+    }
+
+// Get all accessory assignments
+    public function getaccessoryassign()
+    {
+        try {
+            $assignments = Assignment::with(['user', 'accessory'])->get();
+            return response()->json(['message' => 'all fetch successfully', 'data' => $assignments],200);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Failed to retrieve accessory assignments', 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    // Get a specific accessory assignment
+    public function editaccessoryassign($id)
+    {
+        try {
+            $assignment = Assignment::findOrFail($id);
+            return response()->json(['message' => 'get assign', 'data' => $assignment],200);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Accessory assignment not found', 'error' => $e->getMessage()], 404);
+        }
+    }
+
+    // Update an accessory assignment
+    public function updateaccessoryassign(Request $request, $id)
+    {
+        try {
+            $validated = $request->validate([
+                'user_id' => 'required|exists:users,id',
+                'accessory_id' => 'required|exists:accessories,id',
+                'assigned_at' => 'nullable|date',
+                'status' => 'nullable|string',
+            ]);
+
+            $assignment = Assignment::findOrFail($id);
+            $assignment->user_id = $validated['user_id'];
+            $assignment->accessory_id = $validated['accessory_id'];
+            $assignment->assigned_at = $validated['assigned_at'] ?? $assignment->assigned_at;
+            $assignment->status = $validated['status'] ?? $assignment->status;
+            $assignment->save();
+
+            return response()->json(['message' => 'Accessory assignment updated successfully', 'data' => $assignment],200);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Failed to update accessory assignment', 'error' => $e->getMessage()], 500);
+        }
+    }
+
+// Delete an accessory assignment
+    public function deleteaccessoryassign($id)
+    {
+        try {
+            $assignment = Assignment::findOrFail($id);
+            $assignment->delete();
+
+            return response()->json(['message' => 'Accessory assignment deleted successfully','data' => $assignment],200);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Failed to delete accessory assignment', 'error' => $e->getMessage()], 500);
+        }
+    }
 }

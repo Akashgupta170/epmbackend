@@ -123,6 +123,12 @@ Route::middleware('auth:api')->group(function () {
     Route::put('/updateaccessory/{id}', [AccessoryAssignController::class, 'updateaccessory']);
     Route::delete('/deleteaccessory/{id}', [AccessoryAssignController::class, 'deleteaccessory']);
 
+    Route::post('/addaccessoryassign', [AccessoryAssignController::class, 'addaccessoryassign']);
+    Route::get('/getaccessoryassign', [AccessoryAssignController::class, 'getaccessoryassign']);
+	Route::get('/editaccessoryassign/{id}', [AccessoryAssignController::class, 'editaccessoryassign']);
+    Route::put('/updateaccessoryassign/{id}', [AccessoryAssignController::class, 'updateaccessoryassign']);
+    Route::delete('/deleteaccessoryassign/{id}', [AccessoryAssignController::class, 'deleteaccessoryassign']);
+
     //Route::get('/tagsactivity', [TagsActivityController::class, 'index']); // Get all tags
 });
 
