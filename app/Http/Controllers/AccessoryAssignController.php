@@ -53,10 +53,14 @@ class AccessoryAssignController extends Controller
         }
     }
 
-    public function getaccessory()
+    public function getaccessory($id)
     {
         try {
-            $accessories = Accessory::with('category')->orderByDesc('id')->get();
+            // Only get accessories that belong to the given category_id
+            $accessories = Accessory::with('category')
+                ->where('category_id', $id)
+                ->orderByDesc('id')
+                ->get();
 
             return response()->json([
                 'message' => 'Accessories retrieved successfully.',

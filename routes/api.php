@@ -118,7 +118,7 @@ Route::middleware('auth:api')->group(function () {
 
     // accessory assign
 	Route::post('/addaccessory', [AccessoryAssignController::class, 'addaccessory']);
-    Route::get('/getaccessory', [AccessoryAssignController::class, 'getaccessory']);
+    Route::get('/getaccessory/{id}', [AccessoryAssignController::class, 'getaccessory']);
 	Route::get('/editaccessory/{id}', [AccessoryAssignController::class, 'editaccessory']);
     Route::put('/updateaccessory/{id}', [AccessoryAssignController::class, 'updateaccessory']);
     Route::delete('/deleteaccessory/{id}', [AccessoryAssignController::class, 'deleteaccessory']);
