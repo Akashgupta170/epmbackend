@@ -8,15 +8,16 @@ use Symfony\Component\HttpFoundation\Response;
 
 class CorsMiddleware
 {
-    /**
-     * Handle an incoming request.
-     *
-     * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
-     */
     public function handle(Request $request, Closure $next): Response
     {
-        $response = $next($request);
+        if ($request->getMethod() === 'OPTIONS') {
+            // Handle preflight request
+            $response = response()->json(['status' => 'CORS preflight passed'], 200);
+        } else {
+            $response = $next($request);
+        }
 
+        // Add CORS headers
         $response->headers->set('Access-Control-Allow-Origin', '*');
         $response->headers->set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
         $response->headers->set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
