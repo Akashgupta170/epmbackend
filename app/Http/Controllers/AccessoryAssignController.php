@@ -53,6 +53,22 @@ class AccessoryAssignController extends Controller
         }
     }
 
+    public function allaccessory()
+    {
+        try {
+            $allaccessories = Accessory::orderByDesc('id')->get();
+            return response()->json([
+                'message' => 'all Accessories retrieved successfully.',
+                'data' => $allaccessories
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to fetch all accessories.',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
     public function getaccessory($id)
     {
         try {
