@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AccessoryAssignController;
+use App\Http\Controllers\AccessoryCategoryController;
 use App\Http\Controllers\AccessoryController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -15,7 +16,6 @@ use App\Http\Controllers\LeaveController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\GraphController;
 use App\Http\Controllers\TagActivityController;
-use App\Models\Accessory;
 
 // Route::get('/user', function (Request $request) {
 //     return $request->user();
@@ -110,20 +110,21 @@ Route::middleware('auth:api')->group(function () {
 	Route::delete('/deletetagsactivitys/{id}', [TagActivityController::class, 'destroy']);
 
         // accessory category
-	Route::post('/addaccessorycategory', [AccessoryController::class, 'addaccessorycategory']);
-	Route::get('/getaccessorycategory', [AccessoryController::class, 'getaccessorycategory']);
-	Route::get('/editaccessorycategory/{id}', [AccessoryController::class, 'editaccessorycategory']);
-    Route::put('/updateaccessorycategory/{id}', [AccessoryController::class, 'updateaccessorycategory']);
-    Route::delete('/deleteaccessorycategory/{id}', [AccessoryController::class, 'deleteaccessorycategory']);
+	Route::post('/addaccessorycategory', [AccessoryCategoryController::class, 'addaccessorycategory']);
+	Route::get('/getaccessorycategory', [AccessoryCategoryController::class, 'getaccessorycategory']);
+	Route::get('/editaccessorycategory/{id}', [AccessoryCategoryController::class, 'editaccessorycategory']);
+    Route::put('/updateaccessorycategory/{id}', [AccessoryCategoryController::class, 'updateaccessorycategory']);
+    Route::delete('/deleteaccessorycategory/{id}', [AccessoryCategoryController::class, 'deleteaccessorycategory']);
 
-    // accessory assign
-	Route::post('/addaccessory', [AccessoryAssignController::class, 'addaccessory']);
-    Route::get('/allaccessory', [AccessoryAssignController::class, 'allaccessory']);
-    Route::get('/getaccessory/{id}', [AccessoryAssignController::class, 'getaccessory']);
-	Route::get('/editaccessory/{id}', [AccessoryAssignController::class, 'editaccessory']);
-    Route::put('/updateaccessory/{id}', [AccessoryAssignController::class, 'updateaccessory']);
-    Route::delete('/deleteaccessory/{id}', [AccessoryAssignController::class, 'deleteaccessory']);
+        // accessory add
+	Route::post('/addaccessory', [AccessoryController::class, 'addaccessory']);
+    Route::get('/allaccessory', [AccessoryController::class, 'allaccessory']);
+    Route::get('/getaccessory/{id}', [AccessoryController::class, 'getaccessory']);
+	Route::get('/editaccessory/{id}', [AccessoryController::class, 'editaccessory']);
+    Route::put('/updateaccessory/{id}', [AccessoryController::class, 'updateaccessory']);
+    Route::delete('/deleteaccessory/{id}', [AccessoryController::class, 'deleteaccessory']);
 
+        // accessory assign
     Route::post('/addaccessoryassign', [AccessoryAssignController::class, 'addaccessoryassign']);
     Route::get('/getaccessoryassign', [AccessoryAssignController::class, 'getaccessoryassign']);
 	Route::get('/editaccessoryassign/{id}', [AccessoryAssignController::class, 'editaccessoryassign']);

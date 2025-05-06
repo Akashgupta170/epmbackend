@@ -7,16 +7,25 @@ use Illuminate\Database\Eloquent\Model;
 class Accessory extends Model
 {
     protected $fillable = [
-        'category_id', 'accessory_no', 'model', 'condition', 'issue_date', 'note','status'
+        'accessory_no',
+        'brand_name',
+        'category_id',
+        'vendor_name',
+        'purchase_date',
+        'amount',
+        'condition',
+        'images',
+        'note',
+        'status'
     ];
 
     public function category()
     {
-        return $this->belongsTo(Category::class);
+        return $this->belongsTo(AccessoryCategory::class, 'category_id');
     }
 
-    public function assignments()
+    public function assigns()
     {
-        return $this->hasMany(Assignment::class);
+        return $this->hasMany(AccessoryAssign::class);
     }
 }

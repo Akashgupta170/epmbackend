@@ -4,9 +4,9 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class Category extends Model
+class AccessoryCategory extends Model
 {
-    protected $fillable = ['name'];
+    protected $fillable = ['name','category_code','instock'];
 
     public function accessories()
     {

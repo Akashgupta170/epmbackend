@@ -4,7 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class Assignment extends Model
+class AccessoryAssign extends Model
 {
     protected $fillable = [
         'user_id', 'accessory_id', 'assigned_at','status'
