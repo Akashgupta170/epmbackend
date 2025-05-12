@@ -13,10 +13,14 @@ return new class extends Migration
     {
         Schema::create('accessory_assigns', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('user_id')->constrained()->onDelete('cascade');
             $table->foreignId('accessory_id')->constrained()->onDelete('cascade');
+            $table->foreignId('user_id')->constrained()->onDelete('cascade');
+            $table->string('accessory_no')->unique();
             $table->date('assigned_at')->nullable();
-            $table->enum('status', ['assigned','vacant','in-repair','lost'])->default('vacant');
+            $table->date('return_date')->nullable();
+            $table->string('condition')->nullable();
+            $table->text('notes')->nullable();
+            $table->enum('status', ['assigned', 'returned', 'damaged', 'in_repair', 'lost','trash'])->default('assigned');
             $table->timestamps();
         });
     }

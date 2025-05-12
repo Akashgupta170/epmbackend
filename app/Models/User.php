@@ -99,8 +99,8 @@ public function assignedProjects()
                 ->withTimestamps();
 }
 
-public function assignments() {
-    return $this->hasMany(Assignment::class);
+public function assigns() {
+    return $this->hasMany(AccessoryAssign::class);
 }
 
 

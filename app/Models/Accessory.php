@@ -7,16 +7,8 @@ use Illuminate\Database\Eloquent\Model;
 class Accessory extends Model
 {
     protected $fillable = [
-        'accessory_no',
-        'brand_name',
-        'category_id',
-        'vendor_name',
-        'purchase_date',
-        'amount',
-        'condition',
-        'images',
-        'note',
-        'status'
+        'category_id', 'brand_name', 'vendor_name', 'purchase_date',
+        'purchase_amount', 'stock_quantity', 'warranty_months','condition','notes', 'images',
     ];
 
     public function category()

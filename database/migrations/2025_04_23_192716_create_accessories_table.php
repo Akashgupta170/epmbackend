@@ -13,16 +13,16 @@ return new class extends Migration
     {
         Schema::create('accessories', function (Blueprint $table) {
             $table->id();
-            $table->string('accessory_no')->unique();
-            $table->string('brand_name')->nullable();
             $table->foreignId('category_id')->constrained()->onDelete('cascade');
+            $table->string('brand_name');
             $table->string('vendor_name')->nullable();
-            $table->string('condition')->nullable();
             $table->date('purchase_date')->nullable();
-            $table->integer('amount')->nullable();
-            $table->text('images')->nullable();
-            $table->text('note')->nullable();
-            $table->enum('status', ['available', 'in_use', 'damaged', 'under_repair'])->default('available');
+            $table->decimal('purchase_amount', 10, 2)->nullable();
+            $table->integer('warranty_months')->nullable();
+            $table->string('images')->nullable();
+            $table->string('condition')->default('good');
+            $table->integer('stock_quantity')->default(0);
+            $table->text('notes')->nullable();
             $table->timestamps();
         });
     }

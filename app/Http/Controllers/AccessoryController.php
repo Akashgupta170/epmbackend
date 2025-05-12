@@ -4,44 +4,34 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Models\Accessory;
+use App\Models\AccessoryAssign;
 use App\Models\AccessoryCategory;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
 class AccessoryController extends Controller
 {
+    // accessory
     public function addaccessory(Request $request)
     {
         try {
             // Validate the input fields
             $validated = $request->validate([
-                'category_id' => 'required|exists:accessory_categories,id', // Category ID is required
+                'category_id' => 'required|exists:accessory_categories,id',
                 'brand_name' => 'nullable|max:255',
                 'vendor_name' => 'nullable|string|max:255',
-                'condition' => 'nullable|string|max:255',
                 'purchase_date' => 'nullable|date',
-                'amount' => 'nullable|integer|min:0',
+                'purchase_amount' => 'nullable|integer|min:0',
+                'warranty_months' => 'nullable',
                 'images' => 'nullable|array',
                 'images.*' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg',
-                'note' => 'nullable|string',
-                'status' => 'nullable|string|max:255',
+                'condition' => 'nullable|string|max:255',
+                'stock_quantity' => 'nullable',
+                'notes' => 'nullable|string',
             ]);
 
-            // Fetch category code from accessory_categories based on category_id
-            $category = AccessoryCategory::findOrFail($validated['category_id']);
-            $categoryCode = $category->category_code; // Assuming you have a column named category_code in accessory_categories
 
-            $lastAccessory = Accessory::where('category_id', $validated['category_id'])
-                ->orderBy('accessory_no', 'desc')
-                ->first();
-
-            $lastNumber = 1;
-            if ($lastAccessory) {
-                $lastAccessoryNo = $lastAccessory->accessory_no;
-                $lastNumber = (int) substr($lastAccessoryNo, strrpos($lastAccessoryNo, '-') + 1) + 1;
-            }
-
-            $accessoryNo = $categoryCode . '-' . $lastNumber;
 
             $imagePaths = [];
             if ($request->hasFile('images')) {
@@ -54,18 +44,17 @@ class AccessoryController extends Controller
 
             $validated['images'] = json_encode($imagePaths);
 
-            // Create a new accessory record
             $accessory = new Accessory();
-            $accessory->accessory_no = $accessoryNo;
-            $accessory->brand_name = $validated['brand_name'];
             $accessory->category_id = $validated['category_id'];
+            $accessory->brand_name = $validated['brand_name'];
             $accessory->vendor_name = $validated['vendor_name'];
-            $accessory->condition = $validated['condition'];
             $accessory->purchase_date = $validated['purchase_date'];
-            $accessory->amount = $validated['amount'];
+            $accessory->purchase_amount = $validated['purchase_amount'];
+            $accessory->warranty_months = $validated['warranty_months'];
             $accessory->images = $validated['images'];
-            $accessory->note = $validated['note'];
-            $accessory->status = $validated['status'];
+            $accessory->condition = $validated['condition'];
+            $accessory->notes = $validated['notes'] ?? null;
+            $accessory->stock_quantity = $validated['stock_quantity'];
             $accessory->save();
 
             return response()->json([
@@ -106,7 +95,6 @@ class AccessoryController extends Controller
     public function getaccessory($id)
     {
         try {
-            // Only get accessories that belong to the given category_id
             $accessories = Accessory::with('category')
                 ->where('category_id', $id)
                 ->orderByDesc('id')
@@ -145,44 +133,41 @@ class AccessoryController extends Controller
         try {
             // Validate the request data
             $validated = $request->validate([
-                'accessory_no' => 'nullable|max:255',
                 'brand_name' => 'nullable|max:255',
                 'category_id' => 'required|exists:accessory_categories,id',
                 'vendor_name' => 'nullable|string|max:255',
                 'condition' => 'nullable|string|max:255',
                 'purchase_date' => 'nullable|date',
-                'amount' => 'nullable|integer|min:0',
-                'images' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg', // Only single image
-                'note' => 'nullable|string',
-                'status' => 'nullable|string|max:255',
+                'purchase_amount' => 'nullable|integer|min:0',
+                'warranty_months' => 'nullable|integer|min:0',
+                'images' => 'nullable|array',
+                'images.*' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg',
+                'notes' => 'nullable|string',
+                'stock_quantity' => 'nullable|integer|min:0',
             ]);
 
-            // Handle image upload if a new image is provided
+            $accessory = Accessory::findOrFail($id);
+
+            // Handle image replacement
             if ($request->hasFile('images')) {
-                // Find the existing accessory record
-                $accessory = Accessory::findOrFail($id);
-
-                // Delete the existing image (if any)
+                // Delete existing images
                 $existingImages = json_decode($accessory->images, true);
-
                 if ($existingImages) {
-                    // Delete existing image file from storage
                     foreach ($existingImages as $image) {
-                        // Delete the existing image file
                         Storage::disk('public')->delete($image);
                     }
                 }
 
-                // Store the new image and get the path
-                $image = $request->file('images');
-                $path = $image->store('uploads/accessories', 'public');
+                // Upload new images
+                $imagePaths = [];
+                foreach ($request->file('images') as $image) {
+                    $path = $image->store('images/accessories', 'public');
+                    $imagePaths[] = $path;
+                }
 
-                // Store the new image path as a JSON array
-                $validated['images'] = json_encode([$path]); // Store it as an array, even if it's a single image
+                $validated['images'] = json_encode($imagePaths);
             }
 
-            // Find the accessory and update it with validated data
-            $accessory = Accessory::findOrFail($id);
             $accessory->update($validated);
 
             return response()->json([
@@ -203,45 +188,356 @@ class AccessoryController extends Controller
         }
     }
 
+    public function deleteaccessory($id)
+    {
+        try {
+            // Find the accessory by ID
+            $accessory = Accessory::findOrFail($id);
 
+            // Check if the accessory has images
+            if ($accessory->images) {
+                // Decode the images (JSON stored in the database)
+                $images = json_decode($accessory->images, true);
 
-public function deleteaccessory($id)
-{
-    try {
-        // Find the accessory by ID
-        $accessory = Accessory::findOrFail($id);
-
-        // Check if the accessory has images
-        if ($accessory->images) {
-            // Decode the images (JSON stored in the database)
-            $images = json_decode($accessory->images, true);
-
-            // Loop through each image and delete from the storage
-            foreach ($images as $image) {
-                // Delete the image file from storage
-                Storage::disk('public')->delete($image);
+                // Loop through each image and delete from the storage
+                foreach ($images as $image) {
+                    Storage::disk('public')->delete($image);
+                }
             }
+
+            // Delete the accessory from the database
+            $accessory->delete();
+
+            return response()->json([
+                'message' => 'Accessory and its images deleted successfully.',
+                'data' => $accessory
+            ]);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            // If the accessory is not found
+            return response()->json([
+                'message' => 'Accessory not found.'
+            ], 404);
+        } catch (\Exception $e) {
+            // If any unexpected error occurs
+            return response()->json([
+                'message' => 'Failed to delete accessory.',
+                'error' => $e->getMessage()
+            ], 500);
         }
-
-        // Delete the accessory from the database
-        $accessory->delete();
-
-        return response()->json([
-            'message' => 'Accessory and its images deleted successfully.',
-            'data' => $accessory
-        ]);
-    } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-        // If the accessory is not found
-        return response()->json([
-            'message' => 'Accessory not found.'
-        ], 404);
-    } catch (\Exception $e) {
-        // If any unexpected error occurs
-        return response()->json([
-            'message' => 'Failed to delete accessory.',
-            'error' => $e->getMessage()
-        ], 500);
     }
-}
+
+
+
+    // category accessory
+
+    public function addaccessorycategory(Request $request)
+    {
+        try {
+            // Validate request
+            $validated = $request->validate([
+                'name' => 'required|string|max:255|unique:accessory_categories,name',
+                'category_code' => 'required',
+            ]);
+
+            // Create category
+            $category = AccessoryCategory::create([
+                'name' => $validated['name'],
+                'category_code' => $validated['category_code'],
+            ]);
+
+            return response()->json([
+                'message' => 'Category added successfully!',
+                'data' => $category
+            ], 201);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'message' => 'Validation failed',
+                'errors' => $e->errors(),
+            ], 422);
+
+        } catch (\Exception $e) {
+            // Optional: log error for debugging
+            Log::error('Failed to add category', [
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'message' => 'Something went wrong. Could not add category.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function getaccessorycategory()
+    {
+        try {
+            $categories = AccessoryCategory::with(['accessories.assigns'])->get();
+
+            $summary = $categories->map(function ($category) {
+                $totalAccessories = $category->accessories->count();
+                $totalStock = $category->accessories->sum('stock_quantity');
+
+                $assignedCount = 0;
+                $availableCount = 0;
+                $trashCount = 0;
+
+                foreach ($category->accessories as $accessory) {
+                    $assignedQty = $accessory->assigns->where('status', 'assigned')->count();
+                    $trashQty = $accessory->assigns->where('status', 'trash')->count();
+
+                    $assignedCount += $assignedQty;
+                    $trashCount += $trashQty;
+
+                    // Calculate available as: total stock - assigned - trash
+                    $availableCount += ($accessory->stock_quantity - $assignedQty - $trashQty);
+                }
+
+                return [
+                    'category_id' => $category->id,
+                    'name' => $category->name,
+                    'category_code' => $category->category_code,
+                    'created_at' => $category->created_at,
+                    'total_accessories' => $totalAccessories,
+                    'total_stock' => $totalStock,
+                    'inuse' => $assignedCount,
+                    'available_stock' => $availableCount,
+                    'trash_stock' => $trashCount,
+                ];
+            });
+
+            return response()->json([
+                'message' => 'Category summary fetched successfully.',
+                'data' => $summary
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to fetch category summary.',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+
+
+    public function editaccessorycategory($id)
+    {
+        try {
+            $category = AccessoryCategory::find($id);
+
+            if (!$category) {
+                return response()->json([
+                    'message' => 'Category not found.',
+                ], 404);
+            }
+
+            // Return response if found
+            return response()->json([
+                'message' => 'Category data retrieved successfully!',
+                'data' => $category
+            ], 200);
+
+        } catch (\Exception $e) {
+            // Log unexpected errors
+            Log::error('Failed to retrieve category', [
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'message' => 'Something went wrong. Could not retrieve category.',
+                'error' => $e->getMessage(), // optional
+            ], 500);
+        }
+    }
+
+    public function updateaccessorycategory(Request $request, $id)
+    {
+        try {
+            // Validate input
+            $validated = $request->validate([
+                'name' => 'required|string|max:255|unique:accessory_categories,name,' . $id,
+                'category_code' => 'required',
+            ]);
+
+            // Find the category
+            $category = AccessoryCategory::find($id);
+
+            if (!$category) {
+                return response()->json([
+                    'message' => 'Category not found.'
+                ], 404);
+            }
+
+            // Update the category
+            $category->name = $validated['name'];
+            $category->category_code = $validated['category_code'];
+            $category->save();
+
+            return response()->json([
+                'message' => 'Category updated successfully.',
+                'data' => $category
+            ], 200);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'message' => 'Validation failed.',
+                'errors' => $e->errors(),
+            ], 422);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Something went wrong.',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function deleteaccessorycategory($id)
+    {
+        try {
+            $category = AccessoryCategory::find($id);
+
+            if (!$category) {
+                return response()->json([
+                    'message' => 'Category not found.'
+                ], 404);
+            }
+
+            $category->delete();
+
+            return response()->json([
+                'message' => 'Category deleted successfully.',
+                'data' => $category
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Something went wrong while deleting the category.',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    // accessory assign
+
+    public function addaccessoryassign(Request $request)
+    {
+        try {
+            $validated = $request->validate([
+                'user_id' => 'required|exists:users,id',
+                'accessory_id' => 'required|exists:accessories,id',
+                'assigned_at' => 'nullable|date',
+                'return_date' => 'nullable|date',
+                'condition' => 'nullable',
+                'notes' => 'nullable',
+                'status' => 'nullable|in:assigned,vacant,in-repair,lost',
+            ]);
+
+            $accessory = Accessory::findOrFail($validated['accessory_id']);
+            $category = AccessoryCategory::findOrFail($accessory->category_id);
+            $categoryCode = $category->category_code;
+
+            $lastAssigned = AccessoryAssign::where('accessory_no', 'LIKE', "{$categoryCode}-%")
+                ->orderByRaw("CAST(SUBSTRING_INDEX(accessory_no, '-', -1) AS UNSIGNED) DESC")
+                ->first();
+
+            // Determine next number
+            $nextNumber = 1;
+            if ($lastAssigned) {
+                $lastNumber = (int) substr($lastAssigned->accessory_no, strrpos($lastAssigned->accessory_no, '-') + 1);
+                $nextNumber = $lastNumber + 1;
+            }
+
+            $accessoryNo = "{$categoryCode}-{$nextNumber}";
+
+            $assignment = new AccessoryAssign();
+            $assignment->accessory_no = $accessoryNo;
+            $assignment->user_id = $validated['user_id'];
+            $assignment->accessory_id = $validated['accessory_id'];
+            $assignment->assigned_at = $validated['assigned_at'] ?? null;
+            $assignment->return_date = $validated['return_date'] ?? null;
+            $assignment->condition = $validated['condition'] ?? null;
+            $assignment->notes = $validated['notes'] ?? null;
+            $assignment->status = $validated['status'] ?? 'assigned';
+            $assignment->save();
+
+            return response()->json([
+                'message' => 'Accessory assigned successfully',
+                'data' => $assignment
+            ], 201);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to assign accessory',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+
+    public function getaccessoryassign()
+    {
+        try {
+            $assignments = AccessoryAssign::with(['user', 'accessory.category'])->get();
+            return response()->json(['message' => 'all fetch successfully', 'data' => $assignments],200);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Failed to retrieve accessory assign', 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    public function editaccessoryassign($id)
+    {
+        try {
+            $assignment = AccessoryAssign::findOrFail($id);
+            return response()->json(['message' => 'get assign', 'data' => $assignment],200);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Accessory assignment not found', 'error' => $e->getMessage()], 404);
+        }
+    }
+
+    public function updateaccessoryassign(Request $request, $id)
+    {
+        try {
+            $validated = $request->validate([
+                'accessory_no' => 'nullable|max:255',
+                'user_id' => 'required|exists:users,id',
+                'accessory_id' => 'required|exists:accessories,id',
+                'assigned_at' => 'nullable|date',
+                'return_date' => 'nullable|date',
+                'condition' => 'nullable',
+                'notes' => 'nullable',
+                'status' => 'nullable|string',
+            ]);
+
+            $assignment = AccessoryAssign::findOrFail($id);
+            $assignment->user_id = $validated['user_id'];
+            $assignment->accessory_id = $validated['accessory_id'];
+            $assignment->accessory_no = $validated['accessory_no'] ?? $assignment->accessory_no;
+            $assignment->assigned_at = $validated['assigned_at'] ?? $assignment->assigned_at;
+            $assignment->assigned_at = $validated['return_date'] ?? $assignment->return_date;
+            $assignment->condition = $validated['condition'] ?? null;
+            $assignment->notes = $validated['notes'] ?? null;
+            $assignment->status = $validated['status'] ?? $assignment->status;
+            $assignment->save();
+
+            return response()->json(['message' => 'Accessory assignment updated successfully', 'data' => $assignment],200);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Failed to update accessory assignment', 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    public function deleteaccessoryassign($id)
+    {
+        try {
+            $assignment = AccessoryAssign::findOrFail($id);
+            $assignment->delete();
+
+            return response()->json(['message' => 'Accessory assignment deleted successfully','data' => $assignment],200);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Failed to delete accessory assignment', 'error' => $e->getMessage()], 500);
+        }
+    }
+
 
 }
