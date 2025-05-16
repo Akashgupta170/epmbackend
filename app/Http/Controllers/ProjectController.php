@@ -12,6 +12,7 @@ use App\Models\PerformaSheet;
 use App\Models\TagsActivity;
 use App\Http\Helpers\ApiResponse;
 use App\Http\Resources\ProjectResource;
+use Carbon\Carbon;
 
 
 
@@ -41,36 +42,36 @@ class ProjectController extends Controller
     }
 
     $project = Project::create($validatedData);
-    
+
     return ApiResponse::success('Project created successfully', $project, 201);
 	}
 
-
-    public function assignProjectToManager(Request $request)
+public function assignProjectToManager(Request $request)
 {
     $validatedData = $request->validate([
         'project_id' => 'required|exists:projects,id',
         'project_manager_ids' => 'required|array',
         'project_manager_ids.*' => 'exists:users,id'
     ]);
-
-    $project = Project::findOrFail($request->project_id);
-    $project->project_manager_id = json_encode($validatedData['project_manager_ids']); // ✅ Store as JSON
+    $project = Project::findOrFail($validatedData['project_id']);
+    $existingManagerIds = json_decode($project->project_manager_id, true) ?? [];
+    $mergedManagerIds = array_unique(array_merge($existingManagerIds, $validatedData['project_manager_ids']));
+    $project->project_manager_id = json_encode($mergedManagerIds);
     $project->assigned_by = auth()->user()->id;
     $project->save();
-
     return response()->json([
         'success' => true,
-        'message' => 'Project assigned to Project Managers successfully',
+        'message' => 'Project assigned to Project Managers successfully.',
         'data' => [
             'project_id' => $project->id,
-            'project_manager_ids' => json_decode($project->project_manager_id) // ✅ Return as array
+            'project_manager_ids' => $mergedManagerIds
         ]
     ]);
 }
 
 
-	
+
+
 	public function assignProjectManagerProjectToEmployee(Request $request)
 	{
 		$projectManagerId = auth()->user()->id;
@@ -91,7 +92,6 @@ class ProjectController extends Controller
     // ✅ Get Logged-in Project Manager ID
     $projectManagerId = auth()->user()->id;
 
-    // ✅ Insert into `project_user` Table (Avoiding Duplicates)
     $insertedData = [];
     $alreadyAssigned = [];
 
@@ -99,13 +99,13 @@ class ProjectController extends Controller
         foreach ($validatedData['employee_ids'] as $employeeId) {
             // ✅ Check if the project is already assigned to this employee
             $exists = DB::table('project_user')
-                ->where('project_id', $validatedData['project_id'])
+                   ->where('project_id', $validatedData['project_id'])
                 ->where('user_id', $employeeId)
                 ->exists();
 
             if ($exists) {
-                $alreadyAssigned[] = $employeeId; // ✅ Collect duplicate user_ids
-                continue; // ✅ Skip this user but process the rest
+                $alreadyAssigned[] = $employeeId;
+                continue;
             }
 
             // ✅ Insert only if not exists
@@ -135,11 +135,11 @@ class ProjectController extends Controller
     }
 
     return ApiResponse::success($responseMessage, [
-        'project_manager_id' => $projectManagerId, // ✅ Logged-in Project Manager ID
-        'data' => $insertedData // ✅ Inserted records with `id`, `project_id`, `user_id`
+        'project_manager_id' => $projectManagerId,
+        'data' => $insertedData
     ]);
 	}
-	
+
 	public function getProjectofEmployeeAssignbyProjectManager()
 {
     $projectManagerId = auth()->user()->id;
@@ -166,39 +166,48 @@ class ProjectController extends Controller
 
 public function getUserProjects()
 {
-	$user = auth()->user();
+    try {
+        $user = auth()->user();
 
-    $projects = $user->assignedProjects()
-        ->with('client')
-        ->get()
-        ->map(function ($project) {
-            $tagIds = $project->tags_activitys ? json_decode($project->tags_activitys, true) : [];
+        $projects = $user->assignedProjects()
+            ->with('client')
+            ->get()
+            ->map(function ($project) {
+                $tagIds = $project->tags_activitys ? json_decode($project->tags_activitys, true) : [];
 
-            // ✅ Fetch tag details from tagsactivity table
-            $tags = TagsActivity::whereIn('id', $tagIds)->get(['id', 'name']);
+                $tags = TagsActivity::whereIn('id', $tagIds)->get(['id', 'name']);
 
-            return [
-                'id' => $project->id,
-                'project_name' => $project->project_name,
-                'deadline' => $project->deadline,
-                'created_at' => Carbon::parse($project->created_at)->toDateString(),
-                'updated_at' => Carbon::parse($project->updated_at)->toDateString(),
-                'client' => $project->client ?? ['message' => 'No Client Found'],
-                'tags_activitys' => $tags, // ✅ Returning full tag objects with id & name
-                'pivot' => [
-                    'user_id' => $project->pivot->user_id,
-                    'project_id' => $project->pivot->project_id,
-                    'assigned_at' => $project->pivot->created_at
-                        ? Carbon::parse($project->pivot->created_at)->toDateString()
-                        : 'Not Assigned'
-                ]
-            ];
-        });
+                return [
+                    'id' => $project->id,
+                    'project_name' => $project->project_name,
+                    'deadline' => $project->deadline,
+                    'created_at' => $project->created_at ? Carbon::parse($project->created_at)->toDateString() : null,
+                    'updated_at' => $project->updated_at ? Carbon::parse($project->updated_at)->toDateString() : null,
+                    'client' => $project->client ?? ['message' => 'No Client Found'],
+                    'tags_activitys' => $tags,
+                    'pivot' => [
+                        'user_id' => $project->pivot->user_id ?? null,
+                        'project_id' => $project->pivot->project_id ?? null,
+                        'assigned_at' => $project->pivot->created_at
+                            ? Carbon::parse($project->pivot->created_at)->toDateString()
+                            : 'Not Assigned'
+                    ]
+                ];
+            });
 
-    return ApiResponse::success('User projects fetched successfully', $projects);
+        return ApiResponse::success('User projects fetched successfully', $projects);
+
+    } catch (\Throwable $e) {
+        return response()->json([
+            'status' => 'error',
+            'message' => 'Failed to fetch user projects',
+            'error' => $e->getMessage(),
+        ], 500);
+    }
 }
 
-	
+
+
 public function getAssignedProjects()
 {
     $user = auth()->user();
@@ -258,7 +267,7 @@ public function getAssignedProjects()
 		$project->delete();
         return ApiResponse::success('Project deleted successfully');
     }
-	
+
 	public function assignUsersToProject(Request $request, $projectId)
 	{
 		$project = Project::find($projectId);
@@ -274,7 +283,7 @@ public function getAssignedProjects()
 		return ApiResponse::success('Users assigned successfully', $project->load('assignedUsers'));
 	}
 
-// Projects with  EMployess by all project manager 
+// Projects with  EMployess by all project manager
 public function getAssignedAllProjects()
 {
 	try {
@@ -382,57 +391,59 @@ public function getProjectManagerEmployee()
 }
 
 public function removeProjectManagers(Request $request)
-    {
-        try {
-            // ✅ Validate request data
-            $validatedData = $request->validate([
-                'project_id' => 'required|exists:projects,id',
-                'manager_ids' => 'required|array|min:1',
-                'manager_ids.*' => 'integer|exists:users,id'
-            ]);
+{
+    try {
+        // Validate the incoming request
+        $validatedData = $request->validate([
+            'project_id' => 'required|exists:projects,id',
+            'manager_ids' => 'required|array|min:1',
+            'manager_ids.*' => 'integer|exists:users,id'
+        ]);
 
-            // ✅ Find the project
-            $project = Project::find($validatedData['project_id']);
+        // Fetch the project
+        $project = Project::find($validatedData['project_id']);
 
-            // ✅ Decode existing managers from JSON
-            $existingManagers = json_decode($project->project_manager_id, true) ?? [];
+        // Decode existing project managers
+        $existingManagers = json_decode($project->project_manager_id, true) ?? [];
 
-            // ✅ Filter out the managers that need to be removed
-            $updatedManagers = array_diff($existingManagers, $validatedData['manager_ids']);
+        // Filter out the managers to be removed
+        $updatedManagers = array_diff($existingManagers, $validatedData['manager_ids']);
 
-            // ✅ Remove users from `project_user` table where `project_id` and `project_manager_id` match
-            $deletedRows = DB::table('project_user')
-                ->where('project_id', $validatedData['project_id'])
-                ->whereIn('project_manager_id', $validatedData['manager_ids'])
-                ->delete();
+        // Update the pivot table to remove manager IDs, not delete rows
+        $affectedRows = DB::table('project_user')
+            ->where('project_id', $validatedData['project_id'])
+            ->whereIn('project_manager_id', $validatedData['manager_ids'])
+            ->update(['project_manager_id' => null]);
 
-            // ✅ If no managers remain, set `project_manager_id` to NULL
-            if (empty($updatedManagers)) {
-                $project->project_manager_id = null;
-            } else {
-                $project->project_manager_id = json_encode(array_values($updatedManagers)); // ✅ Re-index array
-            }
-
-            // ✅ Save the updated project
-            $project->save();
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Project managers removed successfully.',
-                'deleted_users' => $deletedRows,
-                'remaining_managers' => $project->project_manager_id ? json_decode($project->project_manager_id) : null
-            ]);
-
-        } catch (\Exception $e) {
-            Log::error('Error removing project managers: ' . $e->getMessage());
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Internal Server Error',
-                'error' => $e->getMessage()
-            ], 500);
+        // Update the project's manager list
+        if (empty($updatedManagers)) {
+            $project->project_manager_id = null;
+        } else {
+            $project->project_manager_id = json_encode(array_values($updatedManagers));
         }
+
+        // Save the updated project
+        $project->save();
+
+        // Return success response
+        return response()->json([
+            'success' => true,
+            'message' => 'Project managers removed successfully.',
+            'updated_rows' => $affectedRows,
+            'remaining_managers' => $project->project_manager_id ? json_decode($project->project_manager_id) : null
+        ]);
+
+    } catch (\Exception $e) {
+        Log::error('Error removing project managers: ' . $e->getMessage());
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Internal Server Error',
+            'error' => $e->getMessage()
+        ], 500);
     }
+}
+
 public function GetFullProjectManangerData()
 {
     $projects = Project::select('id', 'project_name', 'total_hours', 'total_working_hours', 'project_manager_id')->get();
@@ -527,50 +538,46 @@ public function GetFullProjectManangerData()
 }
 
 
-public function totaldepartmentProject()
-{
-    
-    $projects = Project::all();
+    public function totaldepartmentProject()
+    {
 
-    $teamProjectMap = [];
+        $projects = Project::all();
 
-    foreach ($projects as $project) {
-        $managerIds = json_decode($project->project_manager_id, true);
+        $teamProjectMap = [];
 
-        if (empty($managerIds)) {
-            // If no manager is assigned
-            $teamProjectMap['Not Assigned'] = ($teamProjectMap['Not Assigned'] ?? 0) + 1;
-            continue;
-        }
+        foreach ($projects as $project) {
+            $managerIds = json_decode($project->project_manager_id, true);
 
-        // Fetch managers with their teams
-        $managers = User::with('team:id,name')
-            ->whereIn('id', $managerIds)
-            ->get();
+            if (empty($managerIds)) {
+                // If no manager is assigned
+                $teamProjectMap['Not Assigned'] = ($teamProjectMap['Not Assigned'] ?? 0) + 1;
+                continue;
+            }
 
-        // Get unique team names from assigned managers
-        $teamNames = $managers
-            ->filter(fn ($user) => $user->team)
-            ->pluck('team.name')
-            ->unique();
+            // Fetch managers with their teams
+            $managers = User::with('team:id,name')
+                ->whereIn('id', $managerIds)
+                ->get();
 
-        // If no team found even after managers
-        if ($teamNames->isEmpty()) {
-            $teamProjectMap['Not Assigned'] = ($teamProjectMap['Not Assigned'] ?? 0) + 1;
-        } else {
-            foreach ($teamNames as $teamName) {
-                $teamProjectMap[$teamName] = ($teamProjectMap[$teamName] ?? 0) + 1;
+            // Get unique team names from assigned managers
+            $teamNames = $managers
+                ->filter(fn ($user) => $user->team)
+                ->pluck('team.name')
+                ->unique();
+
+            // If no team found even after managers
+            if ($teamNames->isEmpty()) {
+                $teamProjectMap['Not Assigned'] = ($teamProjectMap['Not Assigned'] ?? 0) + 1;
+            } else {
+                foreach ($teamNames as $teamName) {
+                    $teamProjectMap[$teamName] = ($teamProjectMap[$teamName] ?? 0) + 1;
+                }
             }
         }
+
+        return response()->json([
+            'success' => true,
+            'data' => $teamProjectMap,
+        ]);
     }
-
-    return response()->json([
-        'success' => true,
-        'data' => $teamProjectMap,
-    ]);
-}
-
-
-
-
 }

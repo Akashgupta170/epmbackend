@@ -16,12 +16,17 @@ use App\Http\Controllers\LeaveController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\GraphController;
 use App\Http\Controllers\TagActivityController;
+use Illuminate\Support\Facades\Artisan;
 
 // Route::get('/user', function (Request $request) {
 //     return $request->user();
 // })->middleware('auth:sanctum');
 
-
+// to create storage link on live
+Route::get('/storagelink', function() {
+    Artisan::call('storage:link');
+    return 'Storage link created!';
+});
 
 Route::post('/login', [AuthController::class, 'login']);
 Route::get('/login', function () {

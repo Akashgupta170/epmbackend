@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
 
 class UserController extends Controller
 {
@@ -31,7 +32,7 @@ class UserController extends Controller
             'address' => 'nullable|string',
             'role_id' => 'required|exists:roles,id',
             'profile_pic' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
-            'profile_pic_name' => 'nullable|string' // Accepting image name in JSON
+            'profile_pic_name' => 'nullable|string'
         ]);
 
     } catch (\Illuminate\Validation\ValidationException $e) {
@@ -48,17 +49,15 @@ class UserController extends Controller
         'password' => Hash::make($request->password),
         'team_id' => $request->team_id,
         'role_id' => $request->role_id,
-        'profile_pic' => $request->profile_pic_name // Save image name from JSON
     ]);
 
     // ✅ Save file only if uploaded
     if ($request->hasFile('profile_pic')) {
-        $file = $request->file('profile_pic');
-        $filename = time() . '.' . $file->getClientOriginalExtension();
-        $file->storeAs('public/profile_pics', $filename);
-
-        $user->profile_pic = $filename; // Update stored image name
-        $user->save();
+    $file = $request->file('profile_pic');
+    $filename = time() . '.' . $file->getClientOriginalExtension();
+    Storage::disk('public')->putFileAs('profile_pics', $file, $filename);
+    $user->profile_pic = $filename;
+    $user->save();
     }
 
     $role = Role::find($request->role_id)->name;
@@ -100,7 +99,15 @@ class UserController extends Controller
             return ApiResponse::error('User not found', [], 404);
         }
 
+        // Correct the file path
+        $imagePath = 'profile_pics/' . $user->profile_pic;
+
+        if ($user->profile_pic && Storage::disk('public')->exists($imagePath)) {
+            Storage::disk('public')->delete($imagePath);
+        }
+
         $user->delete();
+
         return ApiResponse::success('User deleted successfully');
     }
 
@@ -128,17 +135,27 @@ class UserController extends Controller
             return ApiResponse::error('Validation Error', $e->errors(), 422);
         }
 
-        $user->update($request->only(['name', 'email', 'role_id', 'phone_num', 'address', 'team_id', 'emergency_phone_num']));
-        $user->refresh(); // Ensure new values are reflected
+        // Update user fields
+        $user->update($request->only([
+            'name', 'email', 'role_id', 'phone_num',
+            'address', 'team_id', 'emergency_phone_num'
+        ]));
 
         if ($request->hasFile('profile_pic')) {
+            // Delete old image if exists
+            if ($user->profile_pic && Storage::disk('public')->exists('profile_pics/' . $user->profile_pic)) {
+                Storage::disk('public')->delete('profile_pics/' . $user->profile_pic);
+            }
+
+            // Store new image
             $file = $request->file('profile_pic');
             $filename = time() . '.' . $file->getClientOriginalExtension();
-            $file->storeAs('public/profile_pics', $filename);
+            $file->storeAs('profile_pics', $filename, 'public');
             $user->profile_pic = $filename;
-            $user->save(); // Explicitly save the changes
+            $user->save();
         }
 
+        // Sync roles if provided
         if ($request->has('roles')) {
             $user->roles()->sync($request->roles);
         }

@@ -25,7 +25,7 @@ class LeaveController extends Controller
 			'leave_type' => 'required|in:Full Leave,Short Leave,Half Day,Multiple Days Leave',
 			'reason' => 'required|string|max:255',
 			'status' => 'in:Pending,Approved,Rejected', // ✅ Default will be Pending
-			'hours' => 'nullable|integer|min:1|max:12' // ✅ Only required for Short Leave
+			'hours' => 'nullable' // ✅ Only required for Short Leave
 		]);
 		// ✅ Set end_date automatically for Half Day, Full Leave, and Short Leave
 		if (in_array($request->leave_type, ['Full Leave', 'Short Leave', 'Half Day'])) {
@@ -56,7 +56,7 @@ class LeaveController extends Controller
 			'data' => $leave
 		]);
 	}
-	
+
 	public function getallLeavesForHr(Request $request)
     {
         // Fetch all leaves for all users with their associated user details (e.g., name)
@@ -94,11 +94,11 @@ class LeaveController extends Controller
             'data' => $leaveData
         ]);
     }
-	
+
 	public function getLeavesByemploye(Request $request)
 	{
 		// Get the authenticated user
-        $user = auth()->user(); 
+        $user = auth()->user();
 
         // Fetch the leaves for the logged-in user, you can also add filtering or pagination here
         $leaves = LeavePolicy::where('user_id', $user->id)->get();
@@ -117,7 +117,7 @@ class LeaveController extends Controller
             'data' => $leaves
         ]);
 	}
-	
+
 	public function showmanagerLeavesForTeamemploye(Request $request)
 	{
 		 // Get the authenticated user (Manager)
@@ -180,7 +180,7 @@ class LeaveController extends Controller
             'data' => $leaveData // Include employee leaves
         ]);
 	}
-	
+
 	// Method to approve or reject the leave request
     // Method to approve or reject the leave request
     public function approveLeave(Request $request)
@@ -202,8 +202,8 @@ class LeaveController extends Controller
 
             // Update the leave status and the manager who approved it
             $leave->status = $leaveData['status'];
-            $leave->approved_bymanager = $user->id; // Set the manager's ID (authenticated user)
-            $leave->save(); // Save the updated leave record
+            $leave->approved_bymanager = $user->id;
+            $leave->save();
 
             // Add the updated leave to the response array
             $updatedLeaves[] = $leave;
